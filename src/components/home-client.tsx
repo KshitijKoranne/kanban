@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { BOARD_BACKGROUNDS } from "@/lib/db";
-import { ThemeToggle } from "@/components/theme-provider";
+import { ThemeToggle, useTheme } from "@/components/theme-provider";
 
 export function HomeHeaderActions({ action }: { action: (formData: FormData) => Promise<void> }) {
   return (
@@ -14,11 +14,17 @@ export function HomeHeaderActions({ action }: { action: (formData: FormData) => 
 }
 
 export function CreateBoardButton({ action }: { action: (formData: FormData) => Promise<void> }) {
+  const { theme } = useTheme();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [bg, setBg] = useState("gradient-1");
+  const [bg, setBg] = useState(theme === "light" ? "light-1" : "gradient-1");
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Update default bg when theme changes
+  useEffect(() => {
+    setBg(theme === "light" ? "light-1" : "gradient-1");
+  }, [theme]);
 
   useEffect(() => {
     if (open && inputRef.current) inputRef.current.focus();
@@ -33,6 +39,9 @@ export function CreateBoardButton({ action }: { action: (formData: FormData) => 
     await action(fd);
   };
 
+  const primaryBgs = BOARD_BACKGROUNDS.filter((b) => b.mode === theme);
+  const secondaryBgs = BOARD_BACKGROUNDS.filter((b) => b.mode !== theme);
+
   if (!open) {
     return (
       <button onClick={() => setOpen(true)} className="btn-primary flex items-center gap-2">
@@ -44,7 +53,7 @@ export function CreateBoardButton({ action }: { action: (formData: FormData) => 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "var(--color-overlay)", backdropFilter: "blur(4px)" }} onClick={() => setOpen(false)}>
-      <div className="rounded-2xl p-6 w-full max-w-md slide-up" style={{ background: "var(--color-modal-bg)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-modal)" }} onClick={(e) => e.stopPropagation()}>
+      <div className="rounded-2xl p-6 w-full max-w-md slide-up max-h-[85vh] overflow-y-auto" style={{ background: "var(--color-modal-bg)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-modal)" }} onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-bold mb-4" style={{ fontFamily: "var(--font-display)" }}>Create New Board</h2>
 
         <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--color-text-muted)" }}>Board Name</label>
@@ -57,9 +66,11 @@ export function CreateBoardButton({ action }: { action: (formData: FormData) => 
           onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
         />
 
-        <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--color-text-muted)" }}>Background</label>
-        <div className="grid grid-cols-6 gap-2 mb-6">
-          {BOARD_BACKGROUNDS.map((b) => (
+        <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--color-text-muted)" }}>
+          {theme === "dark" ? "Dark" : "Light"} Backgrounds
+        </label>
+        <div className="grid grid-cols-6 gap-2 mb-4">
+          {primaryBgs.map((b) => (
             <button
               key={b.id}
               className="h-10 rounded-lg transition-all duration-150"
@@ -67,6 +78,27 @@ export function CreateBoardButton({ action }: { action: (formData: FormData) => 
                 background: b.css,
                 outline: bg === b.id ? "2px solid var(--color-accent)" : "2px solid transparent",
                 outlineOffset: 2,
+                border: b.mode === "light" ? "1px solid var(--color-border)" : "none",
+              }}
+              onClick={() => setBg(b.id)}
+              title={b.label}
+            />
+          ))}
+        </div>
+
+        <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--color-text-muted)" }}>
+          {theme === "dark" ? "Light" : "Dark"} Backgrounds
+        </label>
+        <div className="grid grid-cols-6 gap-2 mb-6">
+          {secondaryBgs.map((b) => (
+            <button
+              key={b.id}
+              className="h-10 rounded-lg transition-all duration-150"
+              style={{
+                background: b.css,
+                outline: bg === b.id ? "2px solid var(--color-accent)" : "2px solid transparent",
+                outlineOffset: 2,
+                border: b.mode === "light" ? "1px solid var(--color-border)" : "none",
               }}
               onClick={() => setBg(b.id)}
               title={b.label}
