@@ -1,0 +1,208 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Satoshi", sans-serif;
+  --font-body: "Satoshi", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --color-surface-0: #0B0E1A;
+  --color-surface-1: #111427;
+  --color-surface-2: #171B30;
+  --color-surface-3: #1E2340;
+  --color-surface-4: #252B4A;
+  --color-border: rgba(255, 255, 255, 0.07);
+  --color-border-hover: rgba(255, 255, 255, 0.14);
+  --color-text-primary: #F0F2F8;
+  --color-text-secondary: #8B92B0;
+  --color-text-muted: #5A6180;
+  --color-accent: #6C5CE7;
+  --color-accent-hover: #7C6FF7;
+  --color-danger: #E74C3C;
+  --color-success: #27AE60;
+  --color-warning: #F39C12;
+}
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--color-surface-0);
+    color: var(--color-text-primary);
+  }
+
+  body {
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: rgba(108, 92, 231, 0.35);
+    color: #fff;
+  }
+
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.2);
+  }
+
+  input, textarea, select, button {
+    font-family: var(--font-body);
+  }
+}
+
+@layer components {
+  .card-hover {
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+    border-color: rgba(255,255,255,0.12);
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #6C5CE7 0%, #a855f7 100%);
+    color: #fff;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-size: 13px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .btn-primary:hover {
+    filter: brightness(1.1);
+    box-shadow: 0 4px 16px rgba(108, 92, 231, 0.4);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .btn-ghost:hover {
+    background: rgba(255,255,255,0.06);
+    color: var(--color-text-primary);
+  }
+
+  .btn-danger {
+    background: var(--color-danger);
+    color: #fff;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-size: 13px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .btn-danger:hover {
+    filter: brightness(1.15);
+  }
+
+  .input-field {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 9px 13px;
+    color: var(--color-text-primary);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s ease;
+    width: 100%;
+  }
+  .input-field:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.15);
+  }
+  .input-field::placeholder {
+    color: var(--color-text-muted);
+  }
+
+  .glass-panel {
+    background: rgba(17, 20, 39, 0.85);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--color-border);
+  }
+
+  .column-container {
+    background: rgba(23, 27, 48, 0.7);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+  }
+
+  .fade-in {
+    animation: fadeIn 0.2s ease forwards;
+  }
+
+  .slide-up {
+    animation: slideUp 0.25s ease forwards;
+  }
+
+  .stagger-1 { animation-delay: 0.03s; }
+  .stagger-2 { animation-delay: 0.06s; }
+  .stagger-3 { animation-delay: 0.09s; }
+  .stagger-4 { animation-delay: 0.12s; }
+
+  .drop-indicator {
+    height: 3px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, #6C5CE7, #EC4899);
+    margin: 2px 0;
+    animation: pulse 1.2s ease infinite;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* date input dark theme */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+}
