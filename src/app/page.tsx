@@ -2,7 +2,7 @@ import { getBoards, createBoard, deleteBoard } from "@/actions/board-actions";
 import { BOARD_BACKGROUNDS } from "@/lib/db";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CreateBoardButton, DeleteBoardButton } from "@/components/home-client";
+import { HomeHeaderActions, DeleteBoardButton } from "@/components/home-client";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +60,7 @@ export default async function HomePage() {
               {boards.length} board{boards.length !== 1 ? "s" : ""}
             </p>
           </div>
-          <CreateBoardButton action={handleCreateBoard} />
+          <HomeHeaderActions action={handleCreateBoard} />
         </div>
 
         {boards.length === 0 ? (

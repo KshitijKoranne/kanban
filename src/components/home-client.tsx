@@ -2,6 +2,16 @@
 
 import { useState, useRef, useEffect } from "react";
 import { BOARD_BACKGROUNDS } from "@/lib/db";
+import { ThemeToggle } from "@/components/theme-provider";
+
+export function HomeHeaderActions({ action }: { action: (formData: FormData) => Promise<void> }) {
+  return (
+    <div className="flex items-center gap-3">
+      <ThemeToggle />
+      <CreateBoardButton action={action} />
+    </div>
+  );
+}
 
 export function CreateBoardButton({ action }: { action: (formData: FormData) => Promise<void> }) {
   const [open, setOpen] = useState(false);
@@ -33,8 +43,8 @@ export function CreateBoardButton({ action }: { action: (formData: FormData) => 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} onClick={() => setOpen(false)}>
-      <div className="rounded-2xl p-6 w-full max-w-md slide-up" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }} onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "var(--color-overlay)", backdropFilter: "blur(4px)" }} onClick={() => setOpen(false)}>
+      <div className="rounded-2xl p-6 w-full max-w-md slide-up" style={{ background: "var(--color-modal-bg)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-modal)" }} onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-bold mb-4" style={{ fontFamily: "var(--font-display)" }}>Create New Board</h2>
 
         <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--color-text-muted)" }}>Board Name</label>
@@ -55,7 +65,7 @@ export function CreateBoardButton({ action }: { action: (formData: FormData) => 
               className="h-10 rounded-lg transition-all duration-150"
               style={{
                 background: b.css,
-                outline: bg === b.id ? "2px solid #6C5CE7" : "2px solid transparent",
+                outline: bg === b.id ? "2px solid var(--color-accent)" : "2px solid transparent",
                 outlineOffset: 2,
               }}
               onClick={() => setBg(b.id)}
@@ -97,7 +107,7 @@ export function DeleteBoardButton({ boardId, action }: { boardId: string; action
   return (
     <button
       className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg p-1.5"
-      style={{ background: "rgba(0,0,0,0.5)", color: "var(--color-text-muted)" }}
+      style={{ background: "var(--color-overlay)", color: "var(--color-text-muted)" }}
       onClick={(e) => { e.preventDefault(); setConfirm(true); }}
     >
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M5 3V2a1 1 0 011-1h4a1 1 0 011 1v1m-8 1v9a2 2 0 002 2h6a2 2 0 002-2V4H3z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 4h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>

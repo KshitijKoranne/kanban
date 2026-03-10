@@ -19,6 +19,7 @@ import {
   deleteChecklistItem, updateBoard, getActivity,
 } from "@/actions/board-actions";
 import type { ActivityEntry } from "@/lib/types";
+import { ThemeToggle } from "@/components/theme-provider";
 
 // ─── Icons ───
 const Icon = {
@@ -183,12 +184,12 @@ export default function BoardClient({ board, initialColumns, allLabels, allBoard
           <h1 className="text-lg md:text-xl font-bold truncate max-w-[200px] md:max-w-none" style={{ fontFamily: "var(--font-display)" }}>
             {board.name}
           </h1>
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full hidden sm:inline-block" style={{ background: "rgba(108,92,231,0.15)", color: "#6C5CE7" }}>
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full hidden sm:inline-block" style={{ background: "var(--color-accent-subtle)", color: "var(--color-accent)" }}>
             {columns.reduce((s, c) => s + c.cards.length, 0)} tasks
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="relative hidden sm:flex items-center" style={{ background: "rgba(255,255,255,0.05)", borderRadius: 8, padding: "6px 10px" }}>
+          <div className="relative hidden sm:flex items-center" style={{ background: "var(--color-input-bg)", borderRadius: 8, padding: "6px 10px" }}>
             <Icon.Search />
             <input
               className="bg-transparent border-none outline-none text-sm ml-2 w-32 md:w-48"
@@ -199,6 +200,7 @@ export default function BoardClient({ board, initialColumns, allLabels, allBoard
             />
             {search && <button className="ml-1" style={{ color: "var(--color-text-muted)" }} onClick={() => setSearch("")}><Icon.X /></button>}
           </div>
+          <ThemeToggle />
           <button className="btn-ghost p-2" onClick={() => setShowActivity(true)} title="Activity"><Icon.Activity /></button>
           <button className="btn-ghost p-2" onClick={() => setShowBoardSettings(true)} title="Board settings"><Icon.Settings /></button>
         </div>
@@ -206,7 +208,7 @@ export default function BoardClient({ board, initialColumns, allLabels, allBoard
 
       {/* ─── Mobile Sidebar ─── */}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-50 md:hidden" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setSidebarOpen(false)}>
+        <div className="fixed inset-0 z-50 md:hidden" style={{ background: "var(--color-overlay)" }} onClick={() => setSidebarOpen(false)}>
           <div className="w-72 h-full slide-up" style={{ background: "var(--color-surface-1)" }} onClick={(e) => e.stopPropagation()}>
             <div className="p-4 border-b" style={{ borderColor: "var(--color-border)" }}>
               <div className="flex items-center justify-between">
@@ -223,7 +225,7 @@ export default function BoardClient({ board, initialColumns, allLabels, allBoard
                   key={b.id}
                   href={`/board/${b.id}`}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 transition-colors"
-                  style={{ background: b.id === board.id ? "rgba(108,92,231,0.15)" : "transparent" }}
+                  style={{ background: b.id === board.id ? "var(--color-accent-subtle)" : "transparent" }}
                   onClick={() => setSidebarOpen(false)}
                 >
                   <div className="w-4 h-4 rounded" style={{ background: BOARD_BACKGROUNDS.find((bg) => bg.id === b.background)?.css || "#333" }} />
@@ -291,7 +293,7 @@ export default function BoardClient({ board, initialColumns, allLabels, allBoard
                               {col.title}
                             </span>
                           )}
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: "rgba(255,255,255,0.06)", color: "var(--color-text-muted)" }}>
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: "var(--color-badge-bg)", color: "var(--color-text-muted)" }}>
                             {col.cards.length}
                           </span>
                           <button
@@ -316,7 +318,7 @@ export default function BoardClient({ board, initialColumns, allLabels, allBoard
                               className="flex-1 overflow-y-auto px-2 pb-2 space-y-1.5"
                               style={{
                                 minHeight: 60,
-                                background: dropSnapshot.isDraggingOver ? "rgba(108,92,231,0.06)" : "transparent",
+                                background: dropSnapshot.isDraggingOver ? "var(--color-drag-highlight)" : "transparent",
                                 borderRadius: 8,
                                 transition: "background 0.15s ease",
                               }}
@@ -331,7 +333,7 @@ export default function BoardClient({ board, initialColumns, allLabels, allBoard
                                       className="card-hover rounded-lg cursor-pointer"
                                       style={{
                                         ...cardProvided.draggableProps.style,
-                                        background: "var(--color-surface-3)",
+                                        background: "var(--color-card-bg)",
                                         border: "1px solid var(--color-border)",
                                         opacity: cardSnapshot.isDragging ? 0.9 : 1,
                                         transform: cardSnapshot.isDragging
@@ -367,8 +369,8 @@ export default function BoardClient({ board, initialColumns, allLabels, allBoard
                                           )}
                                           {card.due_date && (
                                             <span className="flex items-center gap-1 px-1.5 py-0.5 rounded" style={{
-                                              background: new Date(card.due_date) < new Date() ? "rgba(239,68,68,0.12)" : "rgba(255,255,255,0.04)",
-                                              color: new Date(card.due_date) < new Date() ? "#EF4444" : "var(--color-text-muted)",
+                                              background: new Date(card.due_date) < new Date() ? "var(--color-danger-subtle)" : "var(--color-badge-bg)",
+                                              color: new Date(card.due_date) < new Date() ? "var(--color-danger)" : "var(--color-text-muted)",
                                             }}>
                                               <Icon.Calendar />
                                               {new Date(card.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
@@ -414,7 +416,7 @@ export default function BoardClient({ board, initialColumns, allLabels, allBoard
                                   className="w-full text-left flex items-center gap-1.5 px-2 py-2 rounded-lg text-sm transition-colors"
                                   style={{ color: "var(--color-text-muted)" }}
                                   onClick={() => { setAddingCardColId(col.id); setNewCardTitle(""); }}
-                                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+                                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-hover-bg)")}
                                   onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                                 >
                                   <Icon.Plus /> Add a card
@@ -434,13 +436,13 @@ export default function BoardClient({ board, initialColumns, allLabels, allBoard
                   className="shrink-0 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all"
                   style={{
                     width: 280,
-                    background: "rgba(255,255,255,0.03)",
-                    border: "1px dashed rgba(255,255,255,0.1)",
+                    background: "var(--color-input-bg)",
+                    border: "1px dashed var(--color-border)",
                     color: "var(--color-text-muted)",
                   }}
                   onClick={handleAddColumn}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.03)")}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-hover-bg)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "var(--color-input-bg)")}
                 >
                   <Icon.Plus /> Add column
                 </button>
@@ -537,10 +539,10 @@ function CardDetailModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 md:pt-16 px-4" style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)" }} onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 md:pt-16 px-4" style={{ background: "var(--color-overlay)", backdropFilter: "blur(6px)" }} onClick={onClose}>
       <div
         className="w-full max-w-xl rounded-2xl overflow-hidden slide-up max-h-[85vh] overflow-y-auto"
-        style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
+        style={{ background: "var(--color-modal-bg)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-modal)" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cover */}
@@ -610,7 +612,7 @@ function CardDetailModal({
               </div>
             )}
             {showLabels && (
-              <div className="grid grid-cols-2 gap-1.5 p-2 rounded-lg" style={{ background: "rgba(255,255,255,0.03)" }}>
+              <div className="grid grid-cols-2 gap-1.5 p-2 rounded-lg" style={{ background: "var(--color-input-bg)" }}>
                 {allLabels.map((l) => {
                   const active = cardLabels.some((cl) => cl.id === l.id);
                   return (
@@ -618,9 +620,9 @@ function CardDetailModal({
                       key={l.id}
                       className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all"
                       style={{
-                        background: active ? l.color : "rgba(255,255,255,0.04)",
-                        color: active ? "#fff" : "var(--color-text-secondary)",
-                        border: active ? "none" : "1px solid var(--color-border)",
+                      background: active ? l.color : "var(--color-input-bg)",
+                      color: active ? "#fff" : "var(--color-text-secondary)",
+                      border: active ? "none" : "1px solid var(--color-border)",
                       }}
                       onClick={() => handleToggleLabel(l)}
                     >
@@ -643,14 +645,14 @@ function CardDetailModal({
               </button>
             </div>
             {showCovers && (
-              <div className="flex flex-wrap gap-2 p-2 rounded-lg" style={{ background: "rgba(255,255,255,0.03)" }}>
+              <div className="flex flex-wrap gap-2 p-2 rounded-lg" style={{ background: "var(--color-input-bg)" }}>
                 {CARD_COVERS.map((c, i) => (
                   <button
                     key={i}
                     className="w-8 h-8 rounded-md transition-all"
                     style={{
-                      background: c || "var(--color-surface-4)",
-                      outline: coverColor === c ? "2px solid #6C5CE7" : "2px solid transparent",
+                    background: c || "var(--color-surface-4)",
+                      outline: coverColor === c ? "2px solid var(--color-accent)" : "2px solid transparent",
                       outlineOffset: 2,
                     }}
                     onClick={() => setCoverColor(c)}
@@ -681,8 +683,8 @@ function CardDetailModal({
             <label className="text-[10px] font-bold uppercase tracking-wider mb-2 block" style={{ color: "var(--color-text-muted)" }}>Checklist</label>
             {checkTotal > 0 && (
               <div className="flex items-center gap-3 mb-2">
-                <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
-                  <div className="h-full rounded-full transition-all duration-300" style={{ width: `${checkPct}%`, background: checkPct === 100 ? "#22C55E" : "linear-gradient(90deg, #6C5CE7, #a855f7)" }} />
+                <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--color-badge-bg)" }}>
+                  <div className="h-full rounded-full transition-all duration-300" style={{ width: `${checkPct}%`, background: checkPct === 100 ? "var(--color-success)" : "linear-gradient(90deg, var(--color-accent), #a855f7)" }} />
                 </div>
                 <span className="text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>{checkPct}%</span>
               </div>
@@ -692,8 +694,8 @@ function CardDetailModal({
                 <button
                   className="w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all"
                   style={{
-                    borderColor: item.is_done ? "#6C5CE7" : "rgba(255,255,255,0.15)",
-                    background: item.is_done ? "#6C5CE7" : "transparent",
+                    borderColor: item.is_done ? "var(--color-accent)" : "var(--color-check-border)",
+                    background: item.is_done ? "var(--color-accent)" : "transparent",
                     color: item.is_done ? "#fff" : "transparent",
                   }}
                   onClick={() => handleToggleCheck(item.id)}
@@ -752,8 +754,8 @@ function BoardSettingsModal({ board, onClose }: { board: Board; onClose: () => v
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)" }} onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl p-6 slide-up" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }} onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "var(--color-overlay)", backdropFilter: "blur(6px)" }} onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl p-6 slide-up" style={{ background: "var(--color-modal-bg)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-modal)" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>Board Settings</h2>
           <button className="btn-ghost p-1.5" onClick={onClose}><Icon.X /></button>
@@ -770,7 +772,7 @@ function BoardSettingsModal({ board, onClose }: { board: Board; onClose: () => v
               className="h-10 rounded-lg transition-all"
               style={{
                 background: b.css,
-                outline: bg === b.id ? "2px solid #6C5CE7" : "2px solid transparent",
+                outline: bg === b.id ? "2px solid var(--color-accent)" : "2px solid transparent",
                 outlineOffset: 2,
               }}
               onClick={() => setBg(b.id)}
@@ -807,8 +809,8 @@ function ActivityModal({ boardId, onClose }: { boardId: string; onClose: () => v
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 md:pt-16 px-4" style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)" }} onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl overflow-hidden slide-up max-h-[80vh]" style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }} onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 md:pt-16 px-4" style={{ background: "var(--color-overlay)", backdropFilter: "blur(6px)" }} onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl overflow-hidden slide-up max-h-[80vh]" style={{ background: "var(--color-modal-bg)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-modal)" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: "var(--color-border)" }}>
           <h2 className="text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>Activity Log</h2>
           <button className="btn-ghost p-1.5" onClick={onClose}><Icon.X /></button>
