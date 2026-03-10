@@ -97,6 +97,7 @@ export const SCHEMA = `
 `;
 
 export const DEFAULT_LABELS = [
+  // ─── Dev ───
   { id: "lbl-bug", name: "Bug", color: "#EF4444" },
   { id: "lbl-feature", name: "Feature", color: "#3B82F6" },
   { id: "lbl-improvement", name: "Improvement", color: "#22C55E" },
@@ -107,6 +108,17 @@ export const DEFAULT_LABELS = [
   { id: "lbl-devops", name: "DevOps", color: "#F97316" },
   { id: "lbl-research", name: "Research", color: "#6366F1" },
   { id: "lbl-urgent", name: "Urgent", color: "#DC2626" },
+  // ─── Pharma / GxP ───
+  { id: "lbl-csv", name: "CSV", color: "#0891B2" },
+  { id: "lbl-validation", name: "Validation", color: "#7C3AED" },
+  { id: "lbl-capa", name: "CAPA", color: "#BE185D" },
+  { id: "lbl-qualification", name: "Qualification", color: "#0D9488" },
+  { id: "lbl-compliance", name: "Compliance", color: "#1D4ED8" },
+  { id: "lbl-audit", name: "Audit", color: "#B45309" },
+  { id: "lbl-deviation", name: "Deviation", color: "#DC2626" },
+  { id: "lbl-change-ctrl", name: "Change Control", color: "#9333EA" },
+  { id: "lbl-sop", name: "SOP", color: "#059669" },
+  { id: "lbl-risk", name: "Risk Assessment", color: "#E11D48" },
 ];
 
 export const BOARD_BACKGROUNDS = [
