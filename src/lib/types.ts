@@ -14,6 +14,7 @@ export interface Column {
   title: string;
   color: string;
   position: number;
+  wip_limit: number;
   cards: Card[];
 }
 
@@ -43,6 +44,18 @@ export interface ChecklistItem {
   text: string;
   is_done: boolean;
   position: number;
+}
+
+export interface CardTemplate {
+  id: string;
+  board_id: string;
+  name: string;
+  title: string;
+  description: string;
+  priority: Card["priority"];
+  labels_json: string;
+  checklist_json: string;
+  created_at: string;
 }
 
 export interface ActivityEntry {

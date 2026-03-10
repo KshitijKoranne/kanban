@@ -2,7 +2,7 @@
 
 import { db, uid, DEFAULT_LABELS, SCHEMA } from "@/lib/db";
 import { revalidatePath } from "next/cache";
-import type { Board, Column, Card, Label, ChecklistItem, ActivityEntry } from "@/lib/types";
+import type { Board, Column, Card, Label, ChecklistItem, ActivityEntry, CardTemplate } from "@/lib/types";
 
 // ─── DB INIT ───
 
@@ -21,6 +21,8 @@ async function ensureTables() {
       args: [label.id, label.name, label.color],
     });
   }
+  // Migrations for existing databases
+  try { await client.execute(`ALTER TABLE columns ADD COLUMN wip_limit INTEGER NOT NULL DEFAULT 0`); } catch (e) { /* column exists */ }
 }
 
 let _initialized = false;
@@ -133,7 +135,7 @@ export async function deleteBoard(id: string) {
 
 // ─── FULL BOARD FETCH ───
 
-export async function getBoardWithData(boardId: string): Promise<{ board: Board; columns: Column[]; labels: Label[] } | null> {
+export async function getBoardWithData(boardId: string): Promise<{ board: Board; columns: Column[]; labels: Label[]; templates: CardTemplate[] } | null> {
   await init();
   const client = db();
 
@@ -190,7 +192,8 @@ export async function getBoardWithData(boardId: string): Promise<{ board: Board;
 
     columns.push({
       id: colId, board_id: boardId, title: cr.title as string,
-      color: cr.color as string, position: cr.position as number, cards,
+      color: cr.color as string, position: cr.position as number,
+      wip_limit: (cr.wip_limit as number) || 0, cards,
     });
   }
 
@@ -199,7 +202,18 @@ export async function getBoardWithData(boardId: string): Promise<{ board: Board;
     id: l.id as string, name: l.name as string, color: l.color as string,
   }));
 
-  return { board, columns, labels };
+  const templatesResult = await client.execute({
+    sql: `SELECT * FROM card_templates WHERE board_id = ? ORDER BY created_at DESC`,
+    args: [boardId],
+  });
+  const templates: CardTemplate[] = templatesResult.rows.map((t) => ({
+    id: t.id as string, board_id: t.board_id as string, name: t.name as string,
+    title: t.title as string, description: t.description as string,
+    priority: t.priority as Card["priority"], labels_json: t.labels_json as string,
+    checklist_json: t.checklist_json as string, created_at: t.created_at as string,
+  }));
+
+  return { board, columns, labels, templates };
 }
 
 // ─── COLUMNS ───
@@ -223,13 +237,14 @@ export async function createColumn(boardId: string, title: string, color: string
   return id;
 }
 
-export async function updateColumn(columnId: string, data: { title?: string; color?: string }) {
+export async function updateColumn(columnId: string, data: { title?: string; color?: string; wip_limit?: number }) {
   await init();
   const client = db();
   const sets: string[] = [];
   const args: (string | number)[] = [];
   if (data.title !== undefined) { sets.push("title = ?"); args.push(data.title); }
   if (data.color !== undefined) { sets.push("color = ?"); args.push(data.color); }
+  if (data.wip_limit !== undefined) { sets.push("wip_limit = ?"); args.push(data.wip_limit); }
   args.push(columnId);
   if (sets.length > 0) {
     await client.execute({ sql: `UPDATE columns SET ${sets.join(", ")} WHERE id = ?`, args });
@@ -439,4 +454,102 @@ export async function getActivity(boardId: string, limit: number = 30): Promise<
     id: r.id as string, board_id: r.board_id as string, card_id: r.card_id as string | null,
     action: r.action as string, details: r.details as string, created_at: r.created_at as string,
   }));
+}
+
+// ─── TEMPLATES ───
+
+export async function getTemplates(boardId: string): Promise<CardTemplate[]> {
+  await init();
+  const client = db();
+  const result = await client.execute({
+    sql: `SELECT * FROM card_templates WHERE board_id = ? ORDER BY created_at DESC`,
+    args: [boardId],
+  });
+  return result.rows.map((t) => ({
+    id: t.id as string, board_id: t.board_id as string, name: t.name as string,
+    title: t.title as string, description: t.description as string,
+    priority: t.priority as Card["priority"], labels_json: t.labels_json as string,
+    checklist_json: t.checklist_json as string, created_at: t.created_at as string,
+  }));
+}
+
+export async function createTemplate(
+  boardId: string,
+  data: { name: string; title: string; description: string; priority: string; labels_json: string; checklist_json: string }
+) {
+  await init();
+  const client = db();
+  const id = uid();
+  await client.execute({
+    sql: `INSERT INTO card_templates (id, board_id, name, title, description, priority, labels_json, checklist_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [id, boardId, data.name, data.title, data.description, data.priority, data.labels_json, data.checklist_json],
+  });
+  await logActivity(boardId, null, "template_created", `Template "${data.name}" created`);
+  revalidatePath(`/board/${boardId}`);
+  return id;
+}
+
+export async function deleteTemplate(templateId: string, boardId: string) {
+  await init();
+  const client = db();
+  await client.execute({ sql: `DELETE FROM card_templates WHERE id = ?`, args: [templateId] });
+  revalidatePath(`/board/${boardId}`);
+}
+
+export async function createCardFromTemplate(columnId: string, boardId: string, template: CardTemplate) {
+  await init();
+  const client = db();
+  const cardId = uid();
+  const maxPos = await client.execute({
+    sql: `SELECT COALESCE(MAX(position), -1) as mp FROM cards WHERE column_id = ?`,
+    args: [columnId],
+  });
+  const pos = ((maxPos.rows[0]?.mp as number) ?? -1) + 1;
+
+  await client.execute({
+    sql: `INSERT INTO cards (id, column_id, title, description, priority, position) VALUES (?, ?, ?, ?, ?, ?)`,
+    args: [cardId, columnId, template.title || template.name, template.description, template.priority, pos],
+  });
+
+  // Apply labels
+  try {
+    const labelIds: string[] = JSON.parse(template.labels_json);
+    for (const lid of labelIds) {
+      await client.execute({
+        sql: `INSERT OR IGNORE INTO card_labels (card_id, label_id) VALUES (?, ?)`,
+        args: [cardId, lid],
+      });
+    }
+  } catch (e) { /* ignore */ }
+
+  // Apply checklist
+  try {
+    const items: string[] = JSON.parse(template.checklist_json);
+    for (let i = 0; i < items.length; i++) {
+      await client.execute({
+        sql: `INSERT INTO checklist_items (id, card_id, text, position) VALUES (?, ?, ?, ?)`,
+        args: [uid(), cardId, items[i], i],
+      });
+    }
+  } catch (e) { /* ignore */ }
+
+  await logActivity(boardId, cardId, "card_created", `Card created from template "${template.name}"`);
+  revalidatePath(`/board/${boardId}`);
+  return cardId;
+}
+
+// ─── EXPORT ───
+
+export async function exportBoardAsJSON(boardId: string) {
+  await init();
+  const data = await getBoardWithData(boardId);
+  if (!data) return null;
+  return {
+    exported_at: new Date().toISOString(),
+    version: "1.0",
+    board: data.board,
+    columns: data.columns,
+    labels: data.labels,
+    templates: data.templates,
+  };
 }

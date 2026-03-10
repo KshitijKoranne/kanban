@@ -9,7 +9,9 @@ import {
 } from "@hello-pangea/dnd";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { Board, Column, Card, Label } from "@/lib/types";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import type { Board, Column, Card, Label, CardTemplate } from "@/lib/types";
 import { PRIORITY_CONFIG, COLUMN_PRESETS } from "@/lib/types";
 import { BOARD_BACKGROUNDS, CARD_COVERS } from "@/lib/db";
 import {
@@ -17,6 +19,8 @@ import {
   createCard, updateCard, deleteCard, reorderCards,
   toggleCardLabel, addChecklistItem, toggleChecklistItem,
   deleteChecklistItem, updateBoard, getActivity,
+  createTemplate, deleteTemplate, createCardFromTemplate,
+  exportBoardAsJSON,
 } from "@/actions/board-actions";
 import type { ActivityEntry } from "@/lib/types";
 import { ThemeToggle, useTheme } from "@/components/theme-provider";
@@ -33,7 +37,10 @@ const Icon = {
   Back: () => <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M12 4l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   Settings: () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
   Activity: () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h3l1.5-4 3 8L11 8h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  Grip: () => <svg width="8" height="14" viewBox="0 0 8 14" fill="none" opacity="0.3"><circle cx="2" cy="2" r="1" fill="currentColor"/><circle cx="6" cy="2" r="1" fill="currentColor"/><circle cx="2" cy="7" r="1" fill="currentColor"/><circle cx="6" cy="7" r="1" fill="currentColor"/><circle cx="2" cy="12" r="1" fill="currentColor"/><circle cx="6" cy="12" r="1" fill="currentColor"/></svg>,
+  Stats: () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="8" width="3" height="6" rx="0.5" stroke="currentColor" strokeWidth="1.3"/><rect x="6.5" y="4" width="3" height="10" rx="0.5" stroke="currentColor" strokeWidth="1.3"/><rect x="12" y="1" width="3" height="13" rx="0.5" stroke="currentColor" strokeWidth="1.3"/></svg>,
+  Download: () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8m0 0l-3-3m3 3l3-3M2 12v1a1 1 0 001 1h10a1 1 0 001-1v-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  Template: () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.3"/><path d="M2 6h12M6 6v8" stroke="currentColor" strokeWidth="1.3"/></svg>,
+  Keyboard: () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.3"/><path d="M4 6h1M7 6h2M11 6h1M4 9h8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
   Desc: () => <span style={{ fontSize: 14, opacity: 0.4 }}>≡</span>,
 };
 
@@ -42,9 +49,10 @@ interface Props {
   initialColumns: Column[];
   allLabels: Label[];
   allBoards: Board[];
+  initialTemplates: CardTemplate[];
 }
 
-export default function BoardClient({ board, initialColumns, allLabels, allBoards }: Props) {
+export default function BoardClient({ board, initialColumns, allLabels, allBoards, initialTemplates }: Props) {
   const router = useRouter();
   const [columns, setColumns] = useState<Column[]>(initialColumns);
   const [search, setSearch] = useState("");
@@ -55,15 +63,57 @@ export default function BoardClient({ board, initialColumns, allLabels, allBoard
   const [editingColTitle, setEditingColTitle] = useState("");
   const [showBoardSettings, setShowBoardSettings] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [templates, setTemplates] = useState<CardTemplate[]>(initialTemplates);
   const newCardRef = useRef<HTMLTextAreaElement>(null);
 
   // Sync with server data
   useEffect(() => { setColumns(initialColumns); }, [initialColumns]);
+  useEffect(() => { setTemplates(initialTemplates); }, [initialTemplates]);
 
   useEffect(() => {
     if (addingCardColId && newCardRef.current) newCardRef.current.focus();
   }, [addingCardColId]);
+
+  // ─── Keyboard Shortcuts ───
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Don't fire when typing in inputs
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      if (e.key === "n" || e.key === "N") {
+        e.preventDefault();
+        // Add card to first column
+        if (columns.length > 0) {
+          setAddingCardColId(columns[0].id);
+          setNewCardTitle("");
+        }
+      }
+      if (e.key === "?" || (e.key === "/" && e.shiftKey)) {
+        e.preventDefault();
+        setShowShortcuts((p) => !p);
+      }
+      if (e.key === "s" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setShowStats((p) => !p);
+      }
+      if (e.key === "Escape") {
+        setEditingCard(null);
+        setShowBoardSettings(false);
+        setShowActivity(false);
+        setShowStats(false);
+        setShowTemplates(false);
+        setShowShortcuts(false);
+        setAddingCardColId(null);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [columns]);
 
   const bgObj = BOARD_BACKGROUNDS.find((b) => b.id === board.background);
 
@@ -128,7 +178,7 @@ export default function BoardClient({ board, initialColumns, allLabels, allBoard
   const handleAddColumn = async () => {
     const color = COLUMN_PRESETS[columns.length % COLUMN_PRESETS.length];
     const tempId = "temp-" + Date.now();
-    setColumns((prev) => [...prev, { id: tempId, board_id: board.id, title: "New Column", color, position: prev.length, cards: [] }]);
+    setColumns((prev) => [...prev, { id: tempId, board_id: board.id, title: "New Column", color, position: prev.length, wip_limit: 0, cards: [] }]);
     const newId = await createColumn(board.id, "New Column", color);
     setColumns((prev) => prev.map((c) => c.id === tempId ? { ...c, id: newId } : c));
     setEditingColId(newId);
@@ -201,6 +251,17 @@ export default function BoardClient({ board, initialColumns, allLabels, allBoard
             {search && <button className="ml-1" style={{ color: "var(--color-text-muted)" }} onClick={() => setSearch("")}><Icon.X /></button>}
           </div>
           <ThemeToggle />
+          <button className="btn-ghost p-2" onClick={() => setShowStats(true)} title="Board stats (S)"><Icon.Stats /></button>
+          <button className="btn-ghost p-2" onClick={() => setShowTemplates(true)} title="Card templates"><Icon.Template /></button>
+          <button className="btn-ghost p-2" onClick={async () => {
+            const data = await exportBoardAsJSON(board.id);
+            if (!data) return;
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = `${board.name.replace(/\s+/g, "-").toLowerCase()}-export.json`;
+            a.click(); URL.revokeObjectURL(url);
+          }} title="Export JSON"><Icon.Download /></button>
           <button className="btn-ghost p-2" onClick={() => setShowActivity(true)} title="Activity"><Icon.Activity /></button>
           <button className="btn-ghost p-2" onClick={() => setShowBoardSettings(true)} title="Board settings"><Icon.Settings /></button>
         </div>
@@ -293,8 +354,24 @@ export default function BoardClient({ board, initialColumns, allLabels, allBoard
                               {col.title}
                             </span>
                           )}
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: "var(--color-badge-bg)", color: "var(--color-text-muted)" }}>
-                            {col.cards.length}
+                          <span
+                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-md cursor-pointer"
+                            style={{
+                              background: col.wip_limit > 0 && col.cards.length > col.wip_limit ? "var(--color-danger-subtle)" : "var(--color-badge-bg)",
+                              color: col.wip_limit > 0 && col.cards.length > col.wip_limit ? "var(--color-danger)" : "var(--color-text-muted)",
+                            }}
+                            title="Click to set WIP limit"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const input = prompt(`WIP limit for "${col.title}" (0 = no limit):`, String(col.wip_limit));
+                              if (input !== null) {
+                                const limit = Math.max(0, parseInt(input) || 0);
+                                setColumns((prev) => prev.map((c) => c.id === col.id ? { ...c, wip_limit: limit } : c));
+                                updateColumn(col.id, { wip_limit: limit });
+                              }
+                            }}
+                          >
+                            {col.cards.length}{col.wip_limit > 0 ? `/${col.wip_limit}` : ""}
                           </span>
                           <button
                             className="p-1 rounded transition-colors"
@@ -474,6 +551,28 @@ export default function BoardClient({ board, initialColumns, allLabels, allBoard
       {showActivity && (
         <ActivityModal boardId={board.id} onClose={() => setShowActivity(false)} />
       )}
+
+      {/* ─── Stats Modal ─── */}
+      {showStats && (
+        <StatsModal columns={columns} onClose={() => setShowStats(false)} />
+      )}
+
+      {/* ─── Templates Modal ─── */}
+      {showTemplates && (
+        <TemplatesModal
+          templates={templates}
+          setTemplates={setTemplates}
+          columns={columns}
+          allLabels={allLabels}
+          boardId={board.id}
+          onClose={() => { setShowTemplates(false); router.refresh(); }}
+        />
+      )}
+
+      {/* ─── Keyboard Shortcuts Modal ─── */}
+      {showShortcuts && (
+        <ShortcutsModal onClose={() => setShowShortcuts(false)} />
+      )}
     </div>
   );
 }
@@ -497,6 +596,7 @@ function CardDetailModal({
   const [showCovers, setShowCovers] = useState(false);
   const [currentColId, setCurrentColId] = useState(columnId);
   const [saving, setSaving] = useState(false);
+  const [editingDesc, setEditingDesc] = useState(!card.description);
 
   const checkDone = checklist.filter((c) => c.is_done).length;
   const checkTotal = checklist.length;
@@ -665,17 +765,34 @@ function CardDetailModal({
             )}
           </div>
 
-          {/* Description */}
+          {/* Description (Markdown) */}
           <div className="mb-4">
-            <label className="text-[10px] font-bold uppercase tracking-wider mb-1 block" style={{ color: "var(--color-text-muted)" }}>Description</label>
-            <textarea
-              className="input-field text-sm"
-              rows={4}
-              placeholder="Add a detailed description..."
-              value={desc}
-              onChange={(e) => setDesc(e.target.value)}
-              style={{ resize: "vertical" }}
-            />
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Description</label>
+              {desc && (
+                <button className="text-xs btn-ghost py-0.5 px-2" onClick={() => setEditingDesc(!editingDesc)}>
+                  {editingDesc ? "Preview" : "Edit"}
+                </button>
+              )}
+            </div>
+            {editingDesc ? (
+              <textarea
+                className="input-field text-sm font-mono"
+                rows={5}
+                placeholder="Write in Markdown... (supports **bold**, *italic*, - lists, [links](url), `code`)"
+                value={desc}
+                onChange={(e) => setDesc(e.target.value)}
+                style={{ resize: "vertical", fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.7 }}
+              />
+            ) : (
+              <div
+                className="prose-sm rounded-lg p-3 cursor-pointer text-sm leading-relaxed"
+                style={{ background: "var(--color-input-bg)", color: "var(--color-text-secondary)", minHeight: 60 }}
+                onClick={() => setEditingDesc(true)}
+              >
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{desc || "_Click to add description..._"}</ReactMarkdown>
+              </div>
+            )}
           </div>
 
           {/* Checklist */}
@@ -865,6 +982,235 @@ function ActivityModal({ boardId, onClose }: { boardId: string; onClose: () => v
               ))}
             </div>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════ Stats Modal ═══════════════════════ */
+function StatsModal({ columns, onClose }: { columns: Column[]; onClose: () => void }) {
+  const allCards = columns.flatMap((c) => c.cards);
+  const totalCards = allCards.length;
+  const overdue = allCards.filter((c) => c.due_date && new Date(c.due_date) < new Date()).length;
+  const withDue = allCards.filter((c) => c.due_date).length;
+  const priorities = Object.entries(PRIORITY_CONFIG).map(([key, cfg]) => ({
+    ...cfg, key, count: allCards.filter((c) => c.priority === key).length,
+  })).filter((p) => p.key !== "none" || p.count > 0);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "var(--color-overlay)", backdropFilter: "blur(6px)" }} onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl p-6 slide-up" style={{ background: "var(--color-modal-bg)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-modal)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>Board Stats</h2>
+          <button className="btn-ghost p-1.5" onClick={onClose}><Icon.X /></button>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-3 gap-3 mb-5">
+          <div className="rounded-xl p-4 text-center" style={{ background: "var(--color-input-bg)" }}>
+            <div className="text-2xl font-bold" style={{ color: "var(--color-accent)" }}>{totalCards}</div>
+            <div className="text-[10px] font-bold uppercase tracking-wider mt-1" style={{ color: "var(--color-text-muted)" }}>Total Cards</div>
+          </div>
+          <div className="rounded-xl p-4 text-center" style={{ background: overdue > 0 ? "var(--color-danger-subtle)" : "var(--color-input-bg)" }}>
+            <div className="text-2xl font-bold" style={{ color: overdue > 0 ? "var(--color-danger)" : "var(--color-text-primary)" }}>{overdue}</div>
+            <div className="text-[10px] font-bold uppercase tracking-wider mt-1" style={{ color: "var(--color-text-muted)" }}>Overdue</div>
+          </div>
+          <div className="rounded-xl p-4 text-center" style={{ background: "var(--color-input-bg)" }}>
+            <div className="text-2xl font-bold">{withDue}</div>
+            <div className="text-[10px] font-bold uppercase tracking-wider mt-1" style={{ color: "var(--color-text-muted)" }}>With Due Date</div>
+          </div>
+        </div>
+
+        {/* Cards by Column */}
+        <div className="mb-5">
+          <label className="text-[10px] font-bold uppercase tracking-wider mb-2 block" style={{ color: "var(--color-text-muted)" }}>Cards by Status</label>
+          <div className="space-y-2">
+            {columns.map((col) => {
+              const pct = totalCards > 0 ? (col.cards.length / totalCards) * 100 : 0;
+              return (
+                <div key={col.id} className="flex items-center gap-3">
+                  <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: col.color }} />
+                  <span className="text-sm flex-1 truncate">{col.title}</span>
+                  <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "var(--color-badge-bg)" }}>
+                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: col.color }} />
+                  </div>
+                  <span className="text-xs font-semibold w-6 text-right" style={{ color: "var(--color-text-muted)" }}>{col.cards.length}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Priority Breakdown */}
+        <div>
+          <label className="text-[10px] font-bold uppercase tracking-wider mb-2 block" style={{ color: "var(--color-text-muted)" }}>By Priority</label>
+          <div className="flex flex-wrap gap-2">
+            {priorities.map((p) => (
+              <div key={p.key} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "var(--color-input-bg)" }}>
+                <span style={{ color: p.color }}>{p.icon}</span>
+                <span>{p.label}</span>
+                <span className="ml-1 px-1.5 py-0.5 rounded text-[10px]" style={{ background: "var(--color-badge-bg)", color: "var(--color-text-muted)" }}>{p.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════ Templates Modal ═══════════════════════ */
+function TemplatesModal({
+  templates, setTemplates, columns, allLabels, boardId, onClose,
+}: {
+  templates: CardTemplate[];
+  setTemplates: React.Dispatch<React.SetStateAction<CardTemplate[]>>;
+  columns: Column[];
+  allLabels: Label[];
+  boardId: string;
+  onClose: () => void;
+}) {
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState("");
+  const [title, setTitle] = useState("");
+  const [desc, setDesc] = useState("");
+  const [priority, setPriority] = useState<string>("none");
+  const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
+  const [checkItems, setCheckItems] = useState<string[]>([]);
+  const [newCheckItem, setNewCheckItem] = useState("");
+  const [addToCol, setAddToCol] = useState<string | null>(null);
+
+  const handleCreate = async () => {
+    if (!name.trim()) return;
+    const id = await createTemplate(boardId, {
+      name: name.trim(), title: title.trim(), description: desc, priority,
+      labels_json: JSON.stringify(selectedLabels), checklist_json: JSON.stringify(checkItems),
+    });
+    setTemplates((prev) => [{
+      id, board_id: boardId, name: name.trim(), title: title.trim(), description: desc,
+      priority: priority as CardTemplate["priority"], labels_json: JSON.stringify(selectedLabels),
+      checklist_json: JSON.stringify(checkItems), created_at: new Date().toISOString(),
+    }, ...prev]);
+    setCreating(false);
+    setName(""); setTitle(""); setDesc(""); setPriority("none"); setSelectedLabels([]); setCheckItems([]);
+  };
+
+  const handleUse = async (template: CardTemplate, colId: string) => {
+    await createCardFromTemplate(colId, boardId, template);
+    setAddToCol(null);
+    onClose();
+  };
+
+  const handleDelete = async (id: string) => {
+    await deleteTemplate(id, boardId);
+    setTemplates((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 md:pt-16 px-4" style={{ background: "var(--color-overlay)", backdropFilter: "blur(6px)" }} onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl overflow-hidden slide-up max-h-[85vh] overflow-y-auto" style={{ background: "var(--color-modal-bg)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-modal)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: "var(--color-border)" }}>
+          <h2 className="text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>Card Templates</h2>
+          <div className="flex items-center gap-2">
+            {!creating && <button className="btn-primary text-xs" onClick={() => setCreating(true)}><Icon.Plus /> New</button>}
+            <button className="btn-ghost p-1.5" onClick={onClose}><Icon.X /></button>
+          </div>
+        </div>
+
+        <div className="p-5">
+          {creating && (
+            <div className="mb-5 p-4 rounded-xl" style={{ background: "var(--color-input-bg)", border: "1px solid var(--color-border)" }}>
+              <input className="input-field text-sm mb-2" placeholder="Template name..." value={name} onChange={(e) => setName(e.target.value)} />
+              <input className="input-field text-sm mb-2" placeholder="Card title..." value={title} onChange={(e) => setTitle(e.target.value)} />
+              <textarea className="input-field text-sm mb-2" rows={2} placeholder="Description (markdown)..." value={desc} onChange={(e) => setDesc(e.target.value)} />
+              <select className="input-field text-sm mb-2" value={priority} onChange={(e) => setPriority(e.target.value)}>
+                {Object.entries(PRIORITY_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+              </select>
+              {/* Labels toggle */}
+              <div className="flex flex-wrap gap-1 mb-2">
+                {allLabels.map((l) => (
+                  <button key={l.id} className="text-[10px] font-semibold px-2 py-0.5 rounded-md transition-all" style={{
+                    background: selectedLabels.includes(l.id) ? l.color : "var(--color-badge-bg)",
+                    color: selectedLabels.includes(l.id) ? "#fff" : "var(--color-text-muted)",
+                  }} onClick={() => setSelectedLabels((p) => p.includes(l.id) ? p.filter((x) => x !== l.id) : [...p, l.id])}>
+                    {l.name}
+                  </button>
+                ))}
+              </div>
+              {/* Checklist items */}
+              {checkItems.map((item, i) => (
+                <div key={i} className="flex items-center gap-2 mb-1">
+                  <span className="text-xs flex-1" style={{ color: "var(--color-text-secondary)" }}>☐ {item}</span>
+                  <button className="text-xs" style={{ color: "var(--color-text-muted)" }} onClick={() => setCheckItems((p) => p.filter((_, j) => j !== i))}><Icon.X /></button>
+                </div>
+              ))}
+              <div className="flex gap-2 mb-3">
+                <input className="input-field text-xs flex-1" placeholder="Add checklist item..." value={newCheckItem} onChange={(e) => setNewCheckItem(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && newCheckItem.trim()) { setCheckItems((p) => [...p, newCheckItem.trim()]); setNewCheckItem(""); } }} />
+              </div>
+              <div className="flex gap-2">
+                <button className="btn-primary text-xs" onClick={handleCreate}>Save Template</button>
+                <button className="btn-ghost text-xs" onClick={() => setCreating(false)}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {templates.length === 0 && !creating ? (
+            <p className="text-sm text-center py-8" style={{ color: "var(--color-text-muted)" }}>No templates yet. Create one to quickly add cards with pre-filled content.</p>
+          ) : (
+            <div className="space-y-2">
+              {templates.map((t) => (
+                <div key={t.id} className="p-3 rounded-xl flex items-center gap-3" style={{ background: "var(--color-input-bg)", border: "1px solid var(--color-border)" }}>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold truncate">{t.name}</div>
+                    <div className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+                      {t.title && `"${t.title}" · `}
+                      {t.priority !== "none" && `${PRIORITY_CONFIG[t.priority].icon} `}
+                      {JSON.parse(t.checklist_json).length > 0 && `${JSON.parse(t.checklist_json).length} items`}
+                    </div>
+                  </div>
+                  {addToCol === t.id ? (
+                    <select className="input-field text-xs w-28" autoFocus onChange={(e) => { if (e.target.value) handleUse(t, e.target.value); }} onBlur={() => setAddToCol(null)}>
+                      <option value="">Column...</option>
+                      {columns.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+                    </select>
+                  ) : (
+                    <button className="btn-primary text-xs px-3" onClick={() => setAddToCol(t.id)}>Use</button>
+                  )}
+                  <button className="btn-ghost p-1" onClick={() => handleDelete(t.id)}><Icon.Trash /></button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════ Shortcuts Modal ═══════════════════════ */
+function ShortcutsModal({ onClose }: { onClose: () => void }) {
+  const shortcuts = [
+    { key: "N", desc: "New card in first column" },
+    { key: "S", desc: "Toggle board stats" },
+    { key: "?", desc: "Show keyboard shortcuts" },
+    { key: "Esc", desc: "Close any modal" },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "var(--color-overlay)", backdropFilter: "blur(6px)" }} onClick={onClose}>
+      <div className="w-full max-w-sm rounded-2xl p-6 slide-up" style={{ background: "var(--color-modal-bg)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-modal)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>Keyboard Shortcuts</h2>
+          <button className="btn-ghost p-1.5" onClick={onClose}><Icon.X /></button>
+        </div>
+        <div className="space-y-3">
+          {shortcuts.map((s) => (
+            <div key={s.key} className="flex items-center justify-between">
+              <span className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{s.desc}</span>
+              <kbd className="text-xs font-mono font-semibold px-2.5 py-1 rounded-md" style={{ background: "var(--color-input-bg)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}>{s.key}</kbd>
+            </div>
+          ))}
         </div>
       </div>
     </div>

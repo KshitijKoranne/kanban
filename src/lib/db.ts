@@ -38,7 +38,8 @@ export const SCHEMA = `
     board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
     title TEXT NOT NULL DEFAULT 'New Column',
     color TEXT NOT NULL DEFAULT '#6C5CE7',
-    position INTEGER NOT NULL DEFAULT 0
+    position INTEGER NOT NULL DEFAULT 0,
+    wip_limit INTEGER NOT NULL DEFAULT 0
   );
 
   CREATE TABLE IF NOT EXISTS cards (
@@ -79,6 +80,18 @@ export const SCHEMA = `
     card_id TEXT,
     action TEXT NOT NULL,
     details TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS card_templates (
+    id TEXT PRIMARY KEY,
+    board_id TEXT NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    priority TEXT NOT NULL DEFAULT 'none',
+    labels_json TEXT NOT NULL DEFAULT '[]',
+    checklist_json TEXT NOT NULL DEFAULT '[]',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `;

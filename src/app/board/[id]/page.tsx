@@ -23,6 +23,7 @@ export default async function BoardPage({ params }: Props) {
       initialColumns={result.columns}
       allLabels={result.labels}
       allBoards={boards}
+      initialTemplates={result.templates}
     />
   );
 }
